@@ -1,7 +1,7 @@
 "use client";
 import axios from "axios";
 import { ArrowRight, Loader2, Lock } from "lucide-react";
-import { redirect, useRouter, useSearchParams } from "next/navigation";
+import { redirect } from "next/navigation";
 import React, { useRef, useState } from "react";
 import Cookies from "js-cookie";
 import { useAppData, user_service } from "@/context/AppContext";
@@ -11,8 +11,14 @@ const VerifyPage = ({ email }: any) => {
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [loading, setLoading] = useState(false);
   const inputRefs = useRef<any[]>([]);
-  const router = useRouter();
-  const { isAuth, setIsAuth, setUser, loading: userLoading } = useAppData();
+  const {
+    isAuth,
+    setIsAuth,
+    setUser,
+    loading: userLoading,
+    fetchChats,
+    fetchUser,
+  } = useAppData();
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     index: number
@@ -65,7 +71,8 @@ const VerifyPage = ({ email }: any) => {
         inputRefs.current[0]?.focus;
         setUser(res.data.user);
         setIsAuth(true);
-        router.push(`/chat`);
+        fetchChats();
+        fetchUser();
       }
     } catch (error) {
       console.log(error);

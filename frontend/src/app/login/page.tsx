@@ -5,6 +5,7 @@ import axios from "axios";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
 import { redirect, useRouter } from "next/navigation";
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 
 const page = () => {
   const [email, setEmail] = useState("");
@@ -20,6 +21,7 @@ const page = () => {
         email,
       });
       if (res.status === 200) {
+        toast(res.data.message);
         router.push(`/verify?email=${email}`);
       }
     } catch (error) {
