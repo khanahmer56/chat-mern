@@ -56,7 +56,7 @@ const ChatApp = () => {
         setSidebarOpen={setSidebarOpen}
         showAllUsers={showAllUser}
         setShowAllUsers={setShowAllUser}
-        user={users}
+        users={users}
         loggedInUser={loggedinUser}
         chats={chats}
         selectedUser={slectedUser}

@@ -1,5 +1,5 @@
 import { Chats, User } from "@/context/AppContext";
-import { MessageCircle, Plus, Search, X } from "lucide-react";
+import { MessageCircle, Plus, Search, UserCircle, X } from "lucide-react";
 import React, { useState } from "react";
 
 interface ChatSideBarProps {
@@ -7,7 +7,7 @@ interface ChatSideBarProps {
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   showAllUsers: boolean;
   setShowAllUsers: React.Dispatch<React.SetStateAction<boolean>>;
-  user: User[] | null;
+  users: any;
   loggedInUser: User | null;
   chats: Chats[] | null;
   selectedUser: User | null;
@@ -20,7 +20,7 @@ const ChatSideBar = ({
   setSidebarOpen,
   showAllUsers,
   setShowAllUsers,
-  user,
+  users,
   loggedInUser,
   chats,
   selectedUser,
@@ -80,6 +80,33 @@ const ChatSideBar = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 rounded-md bg-gray-700 text-white focus:outline-none"
               />
+            </div>
+            <div className="space-y-2 overflow-y-auto h-full">
+              {users
+                ?.filter(
+                  (u: any) =>
+                    u._id !== loggedInUser?._id &&
+                    u.name.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((user: any) => (
+                  <button
+                    key={user._id}
+                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-700"
+                    onClick={() => setSelectedUser(user)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <UserCircle className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-white">
+                          {user?.name}
+                        </span>
+                        <div className="text-xs text-gray-400 mt-0.5"></div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
             </div>
           </div>
         ) : (
