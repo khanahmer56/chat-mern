@@ -242,7 +242,6 @@ export const getMessagesbyChat = TryCatch(async (req, res) => {
         });
     }
 });
-// Additional utility function to mark messages as seen
 export const markMessagesAsSeen = TryCatch(async (req, res) => {
     const userId = req.user?._id;
     const { chatId } = req.body;
