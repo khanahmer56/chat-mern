@@ -8,6 +8,7 @@ import Cookies from "js-cookie";
 import axios from "axios";
 import ChatHeader from "@/component/ChatHeader";
 import ChatMessage from "@/component/ChatMessage";
+import MessageInput from "@/component/MessageInput";
 
 export interface Message {
   _id: string;
@@ -35,7 +36,7 @@ const ChatApp = () => {
     fetchChats,
     setChats,
   } = useAppData();
-  const [slectedUser, setSelectedUser] = useState<User | null>(null);
+  const [slectedUser, setSelectedUser] = useState<any | null>(null);
   const [message, setMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -97,13 +98,53 @@ const ChatApp = () => {
       toast.error("Error creating new chat");
     }
   };
+  const handleSendMessage = async (e: any, imageFile?: File | null) => {
+    e.preventDefault();
+    if (!message.trim() && !imageFile) return;
+    if (!slectedUser) return;
+    const token = Cookies.get("token");
+    try {
+      const formData = new FormData();
+      formData.append("chatId", slectedUser);
+
+      if (message.trim()) {
+        formData.append("text", message);
+      }
+
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+      const { data } = await axios.post(
+        `${chat_service}/api/v1/message`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      console.log(data);
+      setMessages((prev) => [...prev, data?.message]);
+      setMessage("");
+      const disPlayText = imageFile ? "📷 image" : "";
+      fetchChat();
+    } catch (error) {
+      toast.error("Error sending message");
+    }
+  };
+  const handleTyping = (value: string) => {
+    setMessage(value);
+    if (!slectedUser) return;
+  };
+
   useEffect(() => {
     if (slectedUser) {
       fetchChat();
     }
   }, [slectedUser]);
   return (
-    <div className="min-h-screen flex bg-gray-900 text-white relative overflow-hidden">
+    <div className="h-screen flex bg-gray-900 text-white relative overflow-hidden">
       <ChatSideBar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -127,6 +168,12 @@ const ChatApp = () => {
           selectedUser={slectedUser}
           messages={messages}
           loggedInUser={loggedinUser}
+        />
+        <MessageInput
+          selectedUser={slectedUser}
+          message={message}
+          setMessage={handleTyping}
+          handleSendMessage={handleSendMessage}
         />
       </div>
     </div>

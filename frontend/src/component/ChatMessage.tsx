@@ -183,6 +183,7 @@ const ChatMessage = ({ selectedUser, messages, loggedInUser }: Props) => {
               {uniqueMessages.map((message, index) => {
                 const isSentByme = message.sender === loggedInUser?._id;
                 const uniqueKey = `${message._id}-${index}`;
+                console.log("message", message);
                 return (
                   <div
                     className={`flex flex-col gap-1 ${

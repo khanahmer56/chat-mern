@@ -173,7 +173,7 @@ const ChatSideBar = ({
               const isSentByMe = latestMessage?.sender === loggedInUser?._id;
               const unseenCount = chat.chat.unseenCount;
               const isOnline = chat.user.isOnline;
-
+              console.log(chat);
               return (
                 <button
                   key={chat.chat._id}

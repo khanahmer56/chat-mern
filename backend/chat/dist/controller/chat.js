@@ -2,10 +2,22 @@ import axios from "axios";
 import TryCatch from "../config/TryCatch.js";
 import Chat from "../models/chat.js";
 import Messages from "../models/Messages.js";
-import chat from "../models/chat.js";
 export const createNewChat = TryCatch(async (req, res) => {
     const userId = req.user?._id;
     const { otherUserId } = req.body;
+    // Validation
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (!otherUserId) {
+        return res.status(400).json({ message: "Other user ID is required" });
+    }
+    if (userId === otherUserId) {
+        return res
+            .status(400)
+            .json({ message: "Cannot create chat with yourself" });
+    }
+    // Check if chat already exists
     const existingChat = await Chat.findOne({
         users: { $all: [userId, otherUserId] },
     });
@@ -15,26 +27,46 @@ export const createNewChat = TryCatch(async (req, res) => {
             chatId: existingChat._id,
         });
     }
-    const newChat = new Chat({ users: [userId, otherUserId] });
+    // Create new chat
+    const newChat = new Chat({
+        users: [userId, otherUserId],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    });
     const savedChat = await newChat.save();
-    res.status(200).json(savedChat);
+    res.status(201).json({
+        message: "Chat created successfully",
+        chatId: savedChat._id,
+        chat: savedChat,
+    });
 });
 export const getAllChats = TryCatch(async (req, res) => {
     const userId = req.user?._id;
-    if (!userId)
+    if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
-    const chats = await Chat.find({ users: { $in: [userId] } }).sort({
-        updatedAt: -1,
-    });
+    }
+    // Find all chats for the user
+    const chats = await Chat.find({
+        users: { $in: [userId] },
+    }).sort({ updatedAt: -1 });
+    if (!chats.length) {
+        return res.status(200).json({ chats: [] });
+    }
     const chatWithUsers = await Promise.all(chats.map(async (chat) => {
-        const othersUserId = chat.users.filter((user) => user !== userId);
+        const otherUserId = chat.users.find((user) => user.toString() !== userId.toString());
+        if (!otherUserId) {
+            return null; // Skip invalid chats
+        }
+        // Fixed: Count unseen messages correctly (messages NOT sent by current user and not seen)
         const unseenCount = await Messages.countDocuments({
             chatId: chat._id,
-            sender: { $in: userId },
-            seenBy: false,
+            sender: { $ne: userId }, // Messages NOT sent by current user
+            seen: false,
         });
         try {
-            const { data } = await axios.get(`http://localhost:5000/api/v1/user/${othersUserId}`);
+            // Get other user's details
+            const { data } = await axios.get(`http://localhost:5000/api/v1/user/${otherUserId}`, { timeout: 5000 } // Add timeout to prevent hanging
+            );
             return {
                 user: data,
                 chat: {
@@ -45,9 +77,14 @@ export const getAllChats = TryCatch(async (req, res) => {
             };
         }
         catch (error) {
-            console.log(error);
+            console.error(`Error fetching user ${otherUserId}:`, error);
+            // Return fallback user data
             return {
-                user: { _id: othersUserId, name: "Unknown" },
+                user: {
+                    _id: otherUserId,
+                    name: "Unknown User",
+                    isActive: false,
+                },
                 chat: {
                     ...chat.toObject(),
                     latestMessage: chat.latestMessage,
@@ -56,63 +93,83 @@ export const getAllChats = TryCatch(async (req, res) => {
             };
         }
     }));
+    // Filter out null entries
+    const validChats = chatWithUsers.filter((chat) => chat !== null);
     res.status(200).json({
-        chats: chatWithUsers,
+        chats: validChats,
+        total: validChats.length,
     });
 });
 export const sendMessage = TryCatch(async (req, res) => {
     const senderId = req.user?._id;
     const { chatId, text } = req.body;
     const imageFile = req.file;
+    // Validation
     if (!senderId) {
         return res.status(401).json({ message: "Unauthorized" });
     }
-    if (!chatId || !text)
-        return res.status(400).json({ message: "Missing required fields" });
-    const chats = await chat.findById(chatId);
-    if (!chats) {
+    if (!chatId) {
+        return res.status(400).json({ message: "Chat ID is required" });
+    }
+    // Must have either text or image
+    if (!text?.trim() && !imageFile) {
+        return res.status(400).json({ message: "Message content is required" });
+    }
+    // Find and validate chat
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
     }
-    const isUserInChat = chats.users.some((user) => user.toString() === senderId.toString());
+    // Check if user is part of this chat
+    const isUserInChat = chat.users.some((user) => user.toString() === senderId.toString());
     if (!isUserInChat) {
-        return res.status(401).json({ message: "You are not in this chat" });
+        return res.status(403).json({
+            message: "You are not authorized to send messages in this chat",
+        });
     }
-    const othersUserId = chats.users.find((user) => user != senderId);
-    if (!othersUserId) {
-        res.status(401).json({ message: "No other User" });
+    // Get the other user
+    const otherUserId = chat.users.find((user) => user.toString() !== senderId.toString());
+    if (!otherUserId) {
+        return res
+            .status(400)
+            .json({ message: "Invalid chat: no other user found" });
     }
-    //socket setup
-    let messagedata = {
+    // Prepare message data
+    let messageData = {
         chatId: chatId,
         sender: senderId,
         seen: false,
-        seenAt: undefined,
+        messageType: "text",
     };
     if (imageFile) {
-        messagedata.image = {
+        messageData.image = {
             url: imageFile.path,
             publicId: imageFile.filename,
         };
-        messagedata.messageType = "image";
-        messagedata.text = text || "";
+        messageData.messageType = "image";
+        if (text?.trim()) {
+            messageData.text = text.trim();
+        }
     }
     else {
-        messagedata.text = text;
-        messagedata.messageType = "text";
+        messageData.text = text.trim();
+        messageData.messageType = "text";
     }
-    const message = new Messages(messagedata);
+    // Create and save message
+    const message = new Messages(messageData);
     const savedMessage = await message.save();
-    const latestMessageText = imageFile ? "image" : text;
-    await chat.findById(chatId, {
+    // Update chat's latest message
+    const latestMessageText = imageFile ? "📷 Image" : text.trim();
+    await Chat.findByIdAndUpdate(chatId, {
         latestMessage: {
             text: latestMessageText,
             sender: senderId,
+            createdAt: new Date(),
         },
-        //   updatedAt: new Date(),
-    }, {
-        new: true,
-    });
-    res.status(200).json({
+        updatedAt: new Date(),
+    }, { new: true });
+    res.status(201).json({
+        success: true,
         message: savedMessage,
         sender: senderId,
     });
@@ -120,42 +177,104 @@ export const sendMessage = TryCatch(async (req, res) => {
 export const getMessagesbyChat = TryCatch(async (req, res) => {
     const userId = req.user?._id;
     const { chatId } = req.params;
+    // Validation
     if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
     }
     if (!chatId) {
-        return res.status(400).json({ message: "Missing required fields" });
+        return res.status(400).json({ message: "Chat ID is required" });
     }
-    const chats = await chat.findById(chatId);
-    if (!chats) {
+    // Find and validate chat
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
     }
-    const isUserInChat = chats.users.some((user) => user.toString() === userId.toString());
+    // Check if user is part of this chat
+    const isUserInChat = chat.users.some((user) => user.toString() === userId.toString());
     if (!isUserInChat) {
-        return res.status(401).json({ message: "You are not in this chat" });
+        return res
+            .status(403)
+            .json({ message: "You are not authorized to access this chat" });
     }
-    const messagesToMarkSeen = await Messages.find({
+    // Mark messages as seen (only messages sent by OTHER users)
+    await Messages.updateMany({
         chatId,
-        seenBy: false,
-        sender: { $in: userId },
+        seen: false,
+        sender: { $ne: userId }, // Only mark messages NOT sent by current user as seen
+    }, {
+        seen: true,
+        seenAt: new Date(),
     });
-    await Messages.updateMany({ chatId, seenBy: false, sender: { $in: userId } }, { seenBy: true, seenAt: new Date() });
+    // Get all messages for this chat
     const messages = await Messages.find({ chatId }).sort({ createdAt: 1 });
-    const othersUserId = chats.users.find((user) => user != userId);
-    if (!othersUserId) {
-        res.status(400).json({ message: "No other User" });
-        return;
+    // Get other user details
+    const otherUserId = chat.users.find((user) => user.toString() !== userId.toString());
+    if (!otherUserId) {
+        return res
+            .status(400)
+            .json({ message: "Invalid chat: no other user found" });
     }
     try {
-        const { data } = await axios.get(`http://localhost:5000/api/v1/user/${othersUserId}`);
-        console.log("dataa", data);
-        res.json({
+        const { data } = await axios.get(`http://localhost:5000/api/v1/user/${otherUserId}`, { timeout: 5000 } // Add timeout
+        );
+        res.status(200).json({
+            success: true,
             messages,
             user: data,
+            chatId,
+            totalMessages: messages.length,
         });
     }
     catch (error) {
-        res.status(400).json({ message: "User not found" });
-        console.log(error);
+        console.error(`Error fetching user ${otherUserId}:`, error);
+        // Return messages with fallback user data
+        res.status(200).json({
+            success: true,
+            messages,
+            user: {
+                _id: otherUserId,
+                name: "Unknown User",
+                isActive: false,
+            },
+            chatId,
+            totalMessages: messages.length,
+            warning: "Could not fetch user details",
+        });
     }
+});
+// Additional utility function to mark messages as seen
+export const markMessagesAsSeen = TryCatch(async (req, res) => {
+    const userId = req.user?._id;
+    const { chatId } = req.body;
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (!chatId) {
+        return res.status(400).json({ message: "Chat ID is required" });
+    }
+    // Verify user is part of the chat
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
+    }
+    const isUserInChat = chat.users.some((user) => user.toString() === userId.toString());
+    if (!isUserInChat) {
+        return res
+            .status(403)
+            .json({ message: "You are not authorized to access this chat" });
+    }
+    // Mark messages as seen
+    const result = await Messages.updateMany({
+        chatId,
+        seen: false,
+        sender: { $ne: userId },
+    }, {
+        seen: true,
+        seenAt: new Date(),
+    });
+    res.status(200).json({
+        success: true,
+        message: "Messages marked as seen",
+        modifiedCount: result.modifiedCount,
+    });
 });
