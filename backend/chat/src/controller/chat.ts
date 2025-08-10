@@ -159,9 +159,6 @@ export const getMessagesbyChat = TryCatch(async (req: any, res) => {
   );
 
   const messages = await Messages.find({ chatId }).sort({ createdAt: 1 });
-  res.status(200).json({
-    messages,
-  });
 
   const othersUserId = chats.users.find((user: any) => user != userId);
   if (!othersUserId) {
@@ -172,6 +169,7 @@ export const getMessagesbyChat = TryCatch(async (req: any, res) => {
     const { data } = await axios.get(
       `http://localhost:5000/api/v1/user/${othersUserId}`
     );
+    console.log("dataa", data);
     res.json({
       messages,
       user: data,

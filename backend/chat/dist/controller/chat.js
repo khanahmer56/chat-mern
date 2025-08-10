@@ -141,9 +141,6 @@ export const getMessagesbyChat = TryCatch(async (req, res) => {
     });
     await Messages.updateMany({ chatId, seenBy: false, sender: { $in: userId } }, { seenBy: true, seenAt: new Date() });
     const messages = await Messages.find({ chatId }).sort({ createdAt: 1 });
-    res.status(200).json({
-        messages,
-    });
     const othersUserId = chats.users.find((user) => user != userId);
     if (!othersUserId) {
         res.status(400).json({ message: "No other User" });
@@ -151,6 +148,7 @@ export const getMessagesbyChat = TryCatch(async (req, res) => {
     }
     try {
         const { data } = await axios.get(`http://localhost:5000/api/v1/user/${othersUserId}`);
+        console.log("dataa", data);
         res.json({
             messages,
             user: data,
