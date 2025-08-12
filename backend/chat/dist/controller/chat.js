@@ -251,7 +251,6 @@ export const markMessagesAsSeen = TryCatch(async (req, res) => {
     if (!chatId) {
         return res.status(400).json({ message: "Chat ID is required" });
     }
-    // Verify user is part of the chat
     const chat = await Chat.findById(chatId);
     if (!chat) {
         return res.status(404).json({ message: "Chat not found" });

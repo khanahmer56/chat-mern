@@ -1,4 +1,5 @@
 import { User } from "@/context/AppContext";
+import { useSocket } from "@/context/SocketContext";
 import { Menu, UserCircle, Circle } from "lucide-react";
 import React from "react";
 
@@ -10,7 +11,8 @@ interface ChatHeaderProps {
 
 const ChatHeader = ({ user, setSidebarOpen, isTyping }: ChatHeaderProps) => {
   console.log(user);
-
+  const socket = useSocket();
+  console.log(socket);
   return (
     <div className="relative">
       {/* Mobile Menu Button */}
