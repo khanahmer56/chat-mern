@@ -1,5 +1,3 @@
-import { User } from "@/context/AppContext";
-import { useSocket } from "@/context/SocketContext";
 import { Menu, UserCircle, Circle } from "lucide-react";
 import React from "react";
 
@@ -7,12 +5,17 @@ interface ChatHeaderProps {
   user: any;
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isTyping: boolean;
+  onlineeUsers: string[] | null;
 }
 
-const ChatHeader = ({ user, setSidebarOpen, isTyping }: ChatHeaderProps) => {
+const ChatHeader = ({
+  user,
+  setSidebarOpen,
+  isTyping,
+  onlineeUsers,
+}: ChatHeaderProps) => {
   console.log(user);
-  const socket = useSocket();
-  console.log(socket);
+
   return (
     <div className="relative">
       {/* Mobile Menu Button */}
@@ -49,9 +52,11 @@ const ChatHeader = ({ user, setSidebarOpen, isTyping }: ChatHeaderProps) => {
                     </div>
 
                     {/* Online Status Indicator */}
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full border-2 border-gray-800 shadow-lg">
-                      <div className="w-full h-full rounded-full bg-green-400 animate-pulse"></div>
-                    </div>
+                    {user && onlineeUsers?.includes(user?._id) && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full border-2 border-gray-800 shadow-lg">
+                        <div className="w-full h-full rounded-full bg-green-400 animate-pulse"></div>
+                      </div>
+                    )}
 
                     {/* Subtle glow effect */}
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></div>
@@ -68,9 +73,15 @@ const ChatHeader = ({ user, setSidebarOpen, isTyping }: ChatHeaderProps) => {
                     {/* Status Indicator */}
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-2 px-3 py-1 bg-gray-700/50 rounded-full border border-gray-600/30">
-                        <Circle className="w-2 h-2 fill-green-400 text-green-400 animate-pulse" />
+                        {user && onlineeUsers?.includes(user?._id) && (
+                          <Circle className="w-2 h-2 fill-green-400 text-green-400 animate-pulse" />
+                        )}
                         <span className="text-sm text-gray-300 font-medium">
-                          {isTyping ? "Typing..." : "Active now"}
+                          {user && onlineeUsers?.includes(user?._id)
+                            ? "Online"
+                            : isTyping
+                            ? "Typing..."
+                            : "Offline"}
                         </span>
                       </div>
                     </div>

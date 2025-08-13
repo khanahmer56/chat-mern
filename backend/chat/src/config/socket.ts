@@ -20,8 +20,25 @@ io.on("connection", (socket: Socket) => {
     console.log(userSocketMap);
   }
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  if (userId) socket.join(userId);
+  socket.on("typing", (data) => {
+    socket.to(data.chatId).emit("userTyping", data);
+  });
+  socket.on("stopTyping", (data) => {
+    socket.to(data.chatId).emit("userStopTyping", data);
+  });
+  socket.on("joinChat", (data) => {
+    socket.join(data.chatId);
+  });
+  socket.on("leaveChat", (data) => {
+    socket.leave(data.chatId);
+  });
   socket.on("disconnect", () => {
     console.log("User Disconnected", socket.id);
+    if (userId) {
+      delete userSocketMap[userId];
+      io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    }
   });
   socket.on("connect_error", (err) => {
     console.log(`connect_error due to ${err.message}`);

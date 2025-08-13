@@ -24,6 +24,7 @@ interface ChatSideBarProps {
   setSelectedUser: (user: User | null) => void;
   handleLogout: () => void;
   createNewChat: (u: any) => void;
+  onlineeUsers: string[] | null;
 }
 
 const ChatSideBar = ({
@@ -38,6 +39,7 @@ const ChatSideBar = ({
   setSelectedUser,
   handleLogout,
   createNewChat,
+  onlineeUsers,
 }: ChatSideBarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -214,7 +216,7 @@ const ChatSideBar = ({
                       </div>
 
                       {/* Online Status */}
-                      {isOnline && (
+                      {onlineeUsers?.includes(chat.user._id) && (
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full border-2 border-gray-900 shadow-lg">
                           <div className="w-full h-full rounded-full bg-green-400 animate-pulse"></div>
                         </div>

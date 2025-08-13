@@ -9,6 +9,7 @@ import axios from "axios";
 import ChatHeader from "@/component/ChatHeader";
 import ChatMessage from "@/component/ChatMessage";
 import MessageInput from "@/component/MessageInput";
+import { useSocket } from "@/context/SocketContext";
 
 export interface Message {
   _id: string;
@@ -46,6 +47,8 @@ const ChatApp = () => {
   const [typingTimeOut, setTypingTimeOut] = useState<NodeJS.Timeout | null>(
     null
   );
+  const { onlineeUsers = [], socket } = useSocket();
+  console.log(onlineeUsers);
   console.log("userr", user);
   const router = useRouter();
   useEffect(() => {
@@ -102,6 +105,14 @@ const ChatApp = () => {
     e.preventDefault();
     if (!message.trim() && !imageFile) return;
     if (!slectedUser) return;
+    if (typingTimeOut) {
+      clearTimeout(typingTimeOut);
+      setTypingTimeOut(null);
+    }
+    socket?.emit("stopTyping", {
+      chatId: slectedUser,
+      userId: loggedinUser?._id,
+    });
     const token = Cookies.get("token");
     try {
       const formData = new FormData();
@@ -136,13 +147,54 @@ const ChatApp = () => {
   const handleTyping = (value: string) => {
     setMessage(value);
     if (!slectedUser) return;
+    if (value.trim()) {
+      socket?.emit("typing", {
+        chatId: slectedUser,
+        userId: loggedinUser?._id,
+      });
+
+      if (typingTimeOut) {
+        clearTimeout(typingTimeOut);
+      }
+      setTypingTimeOut(
+        setTimeout(() => {
+          socket?.emit("stopTyping", {
+            chatId: slectedUser,
+            userId: loggedinUser?._id,
+          });
+        }, 1000)
+      );
+    }
   };
 
   useEffect(() => {
     if (slectedUser) {
       fetchChat();
+      setIsTyping(false);
+      socket?.emit("joinChat", slectedUser);
     }
-  }, [slectedUser]);
+    return () => {
+      socket?.emit("leaveChat", slectedUser);
+      setMessages([]);
+    };
+  }, [slectedUser, socket]);
+  useEffect(() => {
+    if (socket) {
+      socket.on("userTyping", (data) => {
+        if (data?.userId == slectedUser && data?.userId == loggedinUser?._id)
+          setIsTyping(true);
+      });
+      socket.on("userStopTyping", (data) => {
+        setIsTyping(false);
+      });
+    }
+    return () => {
+      if (socket) {
+        socket.off("userTyping");
+        socket.off("userStopTyping");
+      }
+    };
+  }, [socket, slectedUser, loggedinUser?._id]);
   return (
     <div className="h-screen flex bg-gray-900 text-white relative overflow-hidden">
       <ChatSideBar
@@ -157,12 +209,14 @@ const ChatApp = () => {
         setSelectedUser={setSelectedUser}
         handleLogout={handleLogout}
         createNewChat={createNewChat}
+        onlineeUsers={onlineeUsers}
       />
       <div className="flex-1 flex flex-col justify-between p-4 backdrop-blur-xl bg-white/10 border-1 border-white/10">
         <ChatHeader
           user={user}
           setSidebarOpen={setSidebarOpen}
           isTyping={isTyping}
+          onlineeUsers={onlineeUsers}
         />
         <ChatMessage
           selectedUser={slectedUser}
