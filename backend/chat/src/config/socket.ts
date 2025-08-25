@@ -22,17 +22,19 @@ io.on("connection", (socket: Socket) => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
   if (userId) socket.join(userId);
   socket.on("typing", (data) => {
+    console.log("typing", data);
     socket.to(data.chatId).emit("userTyping", data);
   });
   socket.on("stopTyping", (data) => {
     socket.to(data.chatId).emit("userStopTyping", data);
   });
-  socket.on("joinChat", (data) => {
-    socket.join(data.chatId);
+  socket.on("joinChat", (chatId) => {
+    socket.join(chatId);
+    console.log("joined chat", chatId);
   });
-  socket.on("leaveChat", (data) => {
-    socket.leave(data.chatId);
-  });
+  // socket.on("leaveChat", (data) => {
+  //   socket.leave(data.chatId);
+  // });
   socket.on("disconnect", () => {
     console.log("User Disconnected", socket.id);
     if (userId) {

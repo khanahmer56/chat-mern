@@ -14,7 +14,7 @@ const ChatHeader = ({
   isTyping,
   onlineeUsers,
 }: ChatHeaderProps) => {
-  console.log(user);
+  console.log("ahnerrr", isTyping);
 
   return (
     <div className="relative">
@@ -76,12 +76,14 @@ const ChatHeader = ({
                         {user && onlineeUsers?.includes(user?._id) && (
                           <Circle className="w-2 h-2 fill-green-400 text-green-400 animate-pulse" />
                         )}
-                        <span className="text-sm text-gray-300 font-medium">
-                          {user && onlineeUsers?.includes(user?._id)
-                            ? "Online"
-                            : isTyping
-                            ? "Typing..."
-                            : "Offline"}
+                        <span className="text-sm font-medium">
+                          {isTyping ? (
+                            <span className="text-blue-400">Typing...</span>
+                          ) : user && onlineeUsers?.includes(user?._id) ? (
+                            <span className="text-green-400">Online</span>
+                          ) : (
+                            <span className="text-gray-400">Offline</span>
+                          )}
                         </span>
                       </div>
                     </div>
